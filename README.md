@@ -1,0 +1,3 @@
+# Project Overview
+
+An enterprise-grade Text-to-SQL engine engineered to adapt **DeepSeek-Coder** for complex database query generation. The architecture features a scalable **PySpark** ETL pipeline on Databricks for normalizing heterogeneous datasets (Spider + WikiSQL) and orchestrates **Distributed QLoRA** fine-tuning using **Ray Train** and **FSDP** to maximize training throughput on commodity GPU clusters.
