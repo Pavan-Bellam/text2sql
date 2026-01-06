@@ -148,15 +148,18 @@ def train(config_path: str):
 
     torch.manual_seed(config['seed'])
 
+    global_rank = int(os.environ.get("RANK", 0))
     run_name = config['logging'].get("wandb_run_name")
     if run_name is None:
         run_name = f"qlora-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
+    if global_rank == 0:
+        
 
-    wandb.init(
-        project=config["logging"]["wandb_project"],
-        name=run_name,
-        config=config,
-    )
+        wandb.init(
+            project=config["logging"]["wandb_project"],
+            name=run_name,
+            config=config,  # This logs your YAML structure
+        )
 
     model, tokenizer = load_model_and_tokenizer(config)
 
@@ -167,6 +170,13 @@ def train(config_path: str):
         tokenizer=tokenizer,
         padding=True,
         pad_to_multiple_of=8,
+    )
+
+    s3_config = config.get('s3')
+    s3_prefix = f"{s3_config.get("prefix")}/{run_name}"
+    s3_callback = S3UploadCallback(
+    s3_bucket=s3_config.get('bucket_name'),  # CHANGE THIS
+    s3_prefix=s3_prefix  # CHANGE THIS
     )
 
     train_config = config["training"]

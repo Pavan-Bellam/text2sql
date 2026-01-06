@@ -43,6 +43,10 @@ checkpointing:
 logging:
   wandb_project: text2sql
   wandb_run_name: null
-  log_steps: 10
+  log_steps: 50
+
+s3:
+  bucket_name: text2sql-1437
+  prefix: training/experiments
 
 seed: 42
