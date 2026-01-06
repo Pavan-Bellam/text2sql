@@ -127,6 +127,8 @@ def load_model_and_tokenizer(config: dict):
 
 def load_data(config: dict):
     data_path = config["data"]["path"]
+    seed = config.get("seed", 42)
+    
     logger.info(f"Loading data from {data_path}")
     dataset = load_from_disk(data_path)
 
@@ -137,15 +139,24 @@ def load_data(config: dict):
     max_val = config["data"].get("max_val_samples")
 
     if max_train and max_train < len(train_data):
-        train_data = train_data.select(range(max_train))
+        split = train_data.train_test_split(
+            train_size=max_train,
+            stratify_by_column="sql_complexity",
+            seed=seed
+        )
+        train_data = split["train"]
         logger.info(f"Truncated train to {len(train_data):,} samples")
 
     if max_val and max_val < len(val_data):
-        val_data = val_data.select(range(max_val))
+        split = val_data.train_test_split(
+            train_size=max_val,
+            stratify_by_column="sql_complexity",
+            seed=seed
+        )
+        val_data = split["train"]
         logger.info(f"Truncated val to {len(val_data):,} samples")
 
     return train_data, val_data
-
 
 def train(config_path: str):
     config = load_config(config_path)
