@@ -15,8 +15,8 @@ lora:
     - o_proj
 
 training:
-  num_epochs: 3
-  per_device_batch_size: 64
+  num_epochs: 2
+  per_device_batch_size: 8
   gradient_accumulation_steps: 2
   dataloader_num_workers: 16
   learning_rate: 2.0e-4
@@ -25,25 +25,25 @@ training:
   weight_decay: 0.01
   max_grad_norm: 1.0
   bf16: true
-  gradient_checkpointing: false
-  deepspeed: ./ds_config.json
+  gradient_checkpointing: true
+  deepspeed: ./config/ds_config.json
 
 data:
   path: ./data/processed
   max_length: 4096
-  max_train_samples: 50000
-  max_val_samples: 1000
+  max_train_samples: 50
+  max_val_samples: 2
 
 checkpointing:
   output_dir: ./checkpoints
-  save_steps: 500
+  save_steps: 5
   save_total_limit: 3
   resume_from: null
 
 logging:
   wandb_project: text2sql
   wandb_run_name: null
-  log_steps: 50
+  log_steps: 2
 
 s3:
   bucket_name: text2sql-1437

@@ -20,6 +20,7 @@ import wandb
 from loguru import logger
 import os
 
+from src.s3_client import S3UploadCallback
 
 def load_config(path: str) -> dict:
     with open(path) as f:
@@ -218,7 +219,8 @@ def train(config_path: str):
         args=training_args,
         train_dataset=train_data,
         eval_dataset=val_data,
-        data_collator=collator
+        data_collator=collator,
+        callbacks=[s3_callback]
     )
 
     resume_from = ckpt_config.get("resume_from")
