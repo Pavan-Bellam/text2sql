@@ -178,7 +178,15 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=str, required=True, help="Path to config YAML")
     parser.add_argument("--adapter-path", type=str, default=None, help="Path to adapter (default: checkpoints/final)")
+    parser.add_argument("--checkpoint", type=str, default=None, help="Checkpoint name (e.g., 'checkpoint-500'). Overrides --adapter-path")
     parser.add_argument("--max-samples", type=int, default=None, help="Max test samples to evaluate")
     args = parser.parse_args()
     
-    evaluate(args.config, args.adapter_path, args.max_samples)
+    # Resolve adapter path
+    adapter_path = args.adapter_path
+    if args.checkpoint:
+        config = load_config(args.config)
+        adapter_path = f"{config['checkpointing']['output_dir']}/{args.checkpoint}"
+        logger.info(f"Using checkpoint: {adapter_path}")
+    
+    evaluate(args.config, adapter_path, args.max_samples)
