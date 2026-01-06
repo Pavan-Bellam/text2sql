@@ -83,14 +83,11 @@ def load_model_and_tokenizer(config: dict):
     else:
         logger.info("Quantization: disabled (full precision)")
 
-    # ZeRO-3 requires device_map=None so DeepSpeed can manage placement
-    # Non-ZeRO-3 can use device_map="auto"
-    device_map = None if use_zero3 else "auto"
 
     model = AutoModelForCausalLM.from_pretrained(
         model_name,
         quantization_config=quant_config,
-        device_map=device_map,
+        device_map=None,
         trust_remote_code=True,
         torch_dtype=torch.bfloat16,
         use_cache=False,
@@ -116,9 +113,8 @@ def load_model_and_tokenizer(config: dict):
     lora_config = setup_lora(config['lora'])
     model = get_peft_model(model, lora_config)
     
-    # Required for ZeRO-3 + LoRA
-    if use_zero3:
-        model.enable_input_require_grads()
+
+    model.enable_input_require_grads()
     
     model.print_trainable_parameters()
 
@@ -203,7 +199,7 @@ def train(config_path: str):
         report_to="wandb",
         run_name=run_name,
         seed=config["seed"],
-        dataloader_num_workers=0,
+        dataloader_num_workers=train_config.get("dataloader_num_workers"),
         remove_unused_columns=False,
     )
 
