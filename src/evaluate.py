@@ -81,7 +81,7 @@ def normalize_sql(sql: str) -> str:
 
 
 @torch.no_grad()
-def evaluate(config_path: str, adapter_path: str | None = None, max_samples: int | None = None):
+def evaluate(config_path: str, adapter_path: str | None = None, max_samples: int | None = None, num_examples: int = 5):
     config = load_config(config_path)
     
     if adapter_path is None:
@@ -103,6 +103,7 @@ def evaluate(config_path: str, adapter_path: str | None = None, max_samples: int
     total_tokens = 0
     exact_matches = 0
     total_samples = 0
+    sample_outputs = []  # Store examples for inspection
     
     for sample in tqdm(test_data, desc="Evaluating"):
         input_ids = torch.tensor([sample["input_ids"]], device=model.device)
@@ -148,8 +149,19 @@ def evaluate(config_path: str, adapter_path: str | None = None, max_samples: int
         generated_sql = normalize_sql(extract_sql(generated_text))
         target_sql = normalize_sql(extract_sql(target_text))
         
-        if generated_sql == target_sql:
+        is_match = generated_sql == target_sql
+        if is_match:
             exact_matches += 1
+        
+        # Collect sample outputs
+        if len(sample_outputs) < num_examples:
+            prompt_text = tokenizer.decode(prompt_ids[0], skip_special_tokens=True)
+            sample_outputs.append({
+                "prompt": prompt_text,
+                "expected": target_sql,
+                "generated": generated_sql,
+                "match": is_match
+            })
         
         total_samples += 1
     
@@ -166,11 +178,26 @@ def evaluate(config_path: str, adapter_path: str | None = None, max_samples: int
     logger.info(f"Exact Match:  {exact_match_acc:.2f}%")
     logger.info("=" * 50)
     
+    # Print sample outputs
+    logger.info("")
+    logger.info("=" * 50)
+    logger.info(f"SAMPLE OUTPUTS ({len(sample_outputs)} examples)")
+    logger.info("=" * 50)
+    
+    for i, ex in enumerate(sample_outputs):
+        status = "✓ MATCH" if ex["match"] else "✗ MISMATCH"
+        logger.info(f"\n--- Example {i+1} [{status}] ---")
+        logger.info(f"PROMPT:\n{ex['prompt'][:500]}...")  # Truncate long prompts
+        logger.info(f"\nEXPECTED:\n{ex['expected']}")
+        logger.info(f"\nGENERATED:\n{ex['generated']}")
+        logger.info("-" * 40)
+    
     return {
         "loss": avg_loss,
         "perplexity": perplexity,
         "exact_match": exact_match_acc,
-        "samples": total_samples
+        "samples": total_samples,
+        "sample_outputs": sample_outputs
     }
 
 
@@ -180,6 +207,7 @@ if __name__ == "__main__":
     parser.add_argument("--adapter-path", type=str, default=None, help="Path to adapter (default: checkpoints/final)")
     parser.add_argument("--checkpoint", type=str, default=None, help="Checkpoint name (e.g., 'checkpoint-500'). Overrides --adapter-path")
     parser.add_argument("--max-samples", type=int, default=None, help="Max test samples to evaluate")
+    parser.add_argument("--num-examples", type=int, default=5, help="Number of sample outputs to display")
     args = parser.parse_args()
     
     # Resolve adapter path
@@ -189,4 +217,4 @@ if __name__ == "__main__":
         adapter_path = f"{config['checkpointing']['output_dir']}/{args.checkpoint}"
         logger.info(f"Using checkpoint: {adapter_path}")
     
-    evaluate(args.config, adapter_path, args.max_samples)
+    evaluate(args.config, adapter_path, args.max_samples, args.num_examples)
