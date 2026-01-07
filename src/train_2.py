@@ -16,7 +16,7 @@ from transformers import (
     DataCollatorForSeq2Seq
 )
 
-from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
+from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training, PeftModel
 
 import wandb
 from loguru import logger
@@ -70,7 +70,7 @@ def is_deepspeed_zero3(config: dict) -> bool:
     return ds_config.get("zero_optimization", {}).get("stage") == 3
 
 
-def load_model_and_tokenizer(config: dict):
+def load_model_and_tokenizer(config: dict, init_from: str | None = None):
     model_name = config["model"]["name"]
     quant_config = setup_quantization(config["quantization"])
     use_zero3 = is_deepspeed_zero3(config)
@@ -84,7 +84,6 @@ def load_model_and_tokenizer(config: dict):
         logger.info(f"Quantization: {'8-bit' if quant_config.load_in_8bit else '4-bit'}")
     else:
         logger.info("Quantization: disabled (full precision)")
-
 
     model = AutoModelForCausalLM.from_pretrained(
         model_name,
@@ -112,9 +111,22 @@ def load_model_and_tokenizer(config: dict):
             gradient_checkpointing_kwargs={"use_reentrant": False}
         )
 
-    lora_config = setup_lora(config['lora'])
-    model = get_peft_model(model, lora_config)
-
+    # Either load existing adapter or create fresh LoRA
+    if init_from:
+        logger.info(f"Initializing LoRA weights from: {init_from}")
+        model = PeftModel.from_pretrained(
+            model, 
+            init_from, 
+            is_trainable=True,
+        )
+        # Re-enable gradient checkpointing - PeftModel.from_pretrained can reset it
+        if use_gradient_checkpointing and hasattr(model, 'gradient_checkpointing_enable'):
+            model.gradient_checkpointing_enable(
+                gradient_checkpointing_kwargs={"use_reentrant": False}
+            )
+    else:
+        lora_config = setup_lora(config['lora'])
+        model = get_peft_model(model, lora_config)
 
     model.enable_input_require_grads()
     
@@ -158,7 +170,8 @@ def load_data(config: dict):
 
     return train_data, val_data
 
-def train(config_path: str):
+
+def train(config_path: str, init_from: str | None = None, resume_from: str | None = None):
     config = load_config(config_path)
 
     torch.manual_seed(config['seed'])
@@ -181,7 +194,7 @@ def train(config_path: str):
             config=config,  # This logs your YAML structure
         )
 
-    model, tokenizer = load_model_and_tokenizer(config)
+    model, tokenizer = load_model_and_tokenizer(config, init_from=init_from)
 
     train_data, val_data = load_data(config)
     logger.info(f"Train: {len(train_data):,} samples, Val: {len(val_data):,} samples")
@@ -246,7 +259,10 @@ def train(config_path: str):
         callbacks=trainer_callbacks # Uses the rank-guarded list
     )
 
-    resume_from = ckpt_config.get("resume_from")
+    # Resolve resume path - CLI arg takes precedence over config
+    if resume_from is None:
+        resume_from = ckpt_config.get("resume_from")
+    
     if resume_from:
         logger.info(f"Resuming from {resume_from}")
 
@@ -265,5 +281,11 @@ def train(config_path: str):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=str, required=True, help="Path to config YAML")
+    parser.add_argument("--resume", type=str, default=None, help="Resume from checkpoint (keeps optimizer/scheduler state)")
+    parser.add_argument("--init-from", type=str, default=None, help="Initialize weights from checkpoint but start fresh (step 0, new optimizer)")
     args = parser.parse_args()
-    train(args.config)
+    
+    if args.resume and args.init_from:
+        raise ValueError("Cannot use both --resume and --init-from. Pick one.")
+    
+    train(args.config, init_from=args.init_from, resume_from=args.resume)
