@@ -154,7 +154,6 @@ def load_data(config: dict):
     if max_train and max_train < len(train_data):
         split = train_data.train_test_split(
             train_size=max_train,
-            stratify_by_column="sql_complexity",
             seed=seed
         )
         train_data = split["train"]
@@ -163,7 +162,6 @@ def load_data(config: dict):
     if max_val and max_val < len(val_data):
         split = val_data.train_test_split(
             train_size=max_val,
-            stratify_by_column="sql_complexity",
             seed=seed
         )
         val_data = split["train"]
