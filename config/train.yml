@@ -31,22 +31,22 @@ training:
 data:
   path: ./data/processed
   max_length: 4096
-  max_train_samples: 50
-  max_val_samples: 2
+  max_train_samples: 100000
+  max_val_samples: 1000
 
 checkpointing:
   output_dir: ./checkpoints
-  save_steps: 5
+  save_steps: 100
   save_total_limit: 3
   resume_from: null
 
 logging:
   wandb_project: text2sql
   wandb_run_name: null
-  log_steps: 2
+  log_steps: 50
 
 s3:
   bucket_name: text2sql-1437
-  prefix: training/experiments
+  prefix: training/experiments/run-1
 
 seed: 42

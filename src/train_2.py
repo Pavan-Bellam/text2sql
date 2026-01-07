@@ -92,6 +92,7 @@ def load_model_and_tokenizer(config: dict, init_from: str | None = None):
         trust_remote_code=True,
         torch_dtype=torch.bfloat16,
         use_cache=False,
+        attn_implementation="flash_attention_2",
     )
 
     tokenizer = AutoTokenizer.from_pretrained(model_name)
