@@ -7,7 +7,8 @@ Technical overview of the Text2SQL codebase.
 ```
 text2sql/
 ├── src/
-│   └── prepare_dataset.py   # Dataset preprocessing pipeline
+│   ├── prepare_dataset.py   # Dataset preprocessing pipeline
+│   └── s3_client.py         # S3 upload utilities
 ├── config/                   # Training configurations
 ├── data/                     # Processed datasets (gitignored)
 ├── pyproject.toml            # Dependencies
@@ -35,3 +36,17 @@ Preprocesses the SynSQL-2.5M dataset for distributed training.
 - **Assistant**: CoT reasoning + SQL query in code block
 
 **Output:** `./data/processed/` with train/val/test splits in Arrow format
+
+## Utilities
+
+### s3_client.py
+
+S3 upload utilities for checkpoint backup during training.
+
+**S3UploadCallback**: A HuggingFace `TrainerCallback` that automatically uploads checkpoints to S3 after each save.
+
+- Triggered on `on_save` event
+- Uploads entire checkpoint directory recursively
+- Preserves folder structure in S3
+
+**Requires:** AWS credentials configured (via environment variables or AWS profile)
