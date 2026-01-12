@@ -51,3 +51,21 @@ Initialize from checkpoint (fresh optimizer state):
 ```bash
 accelerate launch --config_file config/accelerate.yml src/train.py --config config/train.yaml --init-from ./checkpoints/checkpoint-500
 ```
+
+## Evaluation
+
+Evaluate model on test set (computes loss, perplexity, and exact match accuracy):
+
+```bash
+python src/evaluate.py --config config/train.yaml
+```
+
+Evaluate specific checkpoint:
+```bash
+python src/evaluate.py --config config/train.yaml --checkpoint checkpoint-500
+```
+
+Options:
+- `--adapter-path`: Path to LoRA adapter (default: `checkpoints/final`)
+- `--max-samples`: Limit number of test samples
+- `--num-examples`: Number of sample outputs to display (default: `5`)

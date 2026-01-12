@@ -9,6 +9,7 @@ text2sql/
 ├── src/
 │   ├── prepare_dataset.py   # Dataset preprocessing pipeline
 │   ├── train.py             # Distributed training script
+│   ├── evaluate.py          # Model evaluation script
 │   └── s3_client.py         # S3 upload utilities
 ├── config/
 │   ├── train.yaml           # Training hyperparameters
@@ -81,6 +82,27 @@ Distributed LoRA fine-tuning script using HuggingFace Trainer with DeepSpeed.
 - W&B init/finish only on main process
 - S3 uploads only on main process
 - Uses `RANK` environment variable (set by accelerate/deepspeed)
+
+### evaluate.py
+
+Evaluates fine-tuned model on the test set.
+
+**Metrics computed:**
+- **Loss**: Average cross-entropy loss on non-masked tokens
+- **Perplexity**: Exp of average loss
+- **Exact Match**: Percentage of generated SQL matching target exactly (after normalization)
+
+**SQL comparison:**
+1. Extract SQL from markdown code blocks (```sql ... ```)
+2. Normalize: lowercase, collapse whitespace
+3. Compare strings for exact match
+
+**CLI arguments:**
+- `--config`: Path to training config YAML (required)
+- `--adapter-path`: Path to LoRA adapter (default: `checkpoints/final`)
+- `--checkpoint`: Checkpoint name, e.g., `checkpoint-500` (overrides --adapter-path)
+- `--max-samples`: Limit number of test samples
+- `--num-examples`: Number of sample outputs to display (default: 5)
 
 ## Configuration
 
