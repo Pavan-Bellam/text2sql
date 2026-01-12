@@ -8,8 +8,12 @@ Technical overview of the Text2SQL codebase.
 text2sql/
 ├── src/
 │   ├── prepare_dataset.py   # Dataset preprocessing pipeline
+│   ├── train.py             # Distributed training script
 │   └── s3_client.py         # S3 upload utilities
-├── config/                   # Training configurations
+├── config/
+│   ├── train.yaml           # Training hyperparameters
+│   ├── accelerate.yml       # Accelerate distributed config
+│   └── ds_config.json       # DeepSpeed ZeRO config
 ├── data/                     # Processed datasets (gitignored)
 ├── pyproject.toml            # Dependencies
 └── uv.lock                   # Locked dependencies
@@ -50,6 +54,33 @@ S3 upload utilities for checkpoint backup during training.
 - Preserves folder structure in S3
 
 **Requires:** AWS credentials configured (via environment variables or AWS profile)
+
+## Training
+
+### train.py
+
+Distributed LoRA fine-tuning script using HuggingFace Trainer with DeepSpeed.
+
+**Features:**
+- LoRA fine-tuning via PEFT (parameter-efficient fine-tuning)
+- Optional 4-bit/8-bit quantization via bitsandbytes
+- DeepSpeed ZeRO-2 for distributed training
+- Flash Attention 2 for memory-efficient attention
+- Gradient checkpointing for reduced memory usage
+- W&B experiment tracking (main process only)
+- S3 checkpoint uploads (main process only)
+- Resume training or initialize from existing checkpoint
+
+**CLI arguments:**
+- `--config`: Path to training config YAML (required)
+- `--resume`: Resume from checkpoint (keeps optimizer/scheduler state)
+- `--init-from`: Initialize LoRA weights from checkpoint but start fresh (step 0, new optimizer)
+
+**Distributed training considerations:**
+- Logging silenced on worker processes (only rank 0 logs)
+- W&B init/finish only on main process
+- S3 uploads only on main process
+- Uses `RANK` environment variable (set by accelerate/deepspeed)
 
 ## Configuration
 
