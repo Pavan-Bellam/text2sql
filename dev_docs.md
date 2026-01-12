@@ -50,3 +50,53 @@ S3 upload utilities for checkpoint backup during training.
 - Preserves folder structure in S3
 
 **Requires:** AWS credentials configured (via environment variables or AWS profile)
+
+## Configuration
+
+Production configuration optimized for 7x A100 GPUs on RunPod. These settings were tuned through experimentation to maximize throughput without OOM.
+
+### train.yaml
+
+Main training configuration file.
+
+| Section | Parameters |
+|---------|------------|
+| `model` | Model name/path |
+| `quantization` | Enable/disable quantization (4-bit/8-bit) |
+| `lora` | LoRA hyperparameters (r, alpha, dropout, target_modules) |
+| `training` | Epochs, batch size, learning rate, scheduler, DeepSpeed config path |
+| `data` | Dataset path, max samples |
+| `checkpointing` | Output dir, save frequency, resume path |
+| `logging` | W&B project/run name, log frequency |
+| `s3` | Bucket and prefix for checkpoint uploads |
+
+**Key training parameters:**
+
+| Parameter | Value | Notes |
+|-----------|-------|-------|
+| `quantization.enabled` | `false` | BF16 native on A100s, no need for quantization |
+| `per_device_batch_size` | `7` | Max batch size fitting A100 80GB VRAM |
+| `gradient_accumulation_steps` | `4` | Accumulate before optimizer step |
+| `num_gpus` | `7` | RunPod 7x A100 pod |
+| **Effective batch size** | **196** | 7 × 4 × 7 = 196 samples per optimizer step |
+| `learning_rate` | `2e-4` | Standard for LoRA fine-tuning |
+| `warmup_ratio` | `0.03` | 3% of training steps for LR warmup |
+| `lora.r` | `64` | LoRA rank |
+| `lora.alpha` | `128` | LoRA alpha (scaling = alpha/r = 2) |
+
+### accelerate.yml
+
+HuggingFace Accelerate configuration for distributed training.
+
+- `distributed_type`: DEEPSPEED
+- `num_processes`: 8 (configurable per setup)
+- `deepspeed_config_file`: Path to DeepSpeed config
+
+### ds_config.json
+
+DeepSpeed ZeRO-2 optimization config.
+
+- BF16 mixed precision
+- ZeRO Stage 2 (optimizer state partitioning)
+- No CPU offloading (GPU-only)
+- Auto batch size detection
