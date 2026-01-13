@@ -10,6 +10,7 @@ text2sql/
 │   ├── prepare_dataset.py   # Dataset preprocessing pipeline
 │   ├── train.py             # Distributed training script
 │   ├── evaluate.py          # Model evaluation script
+│   ├── merge_weights.py     # Merge LoRA weights for deployment
 │   └── s3_client.py         # S3 upload utilities
 ├── config/
 │   ├── train.yaml           # Training hyperparameters
@@ -103,6 +104,32 @@ Evaluates fine-tuned model on the test set.
 - `--checkpoint`: Checkpoint name, e.g., `checkpoint-500` (overrides --adapter-path)
 - `--max-samples`: Limit number of test samples
 - `--num-examples`: Number of sample outputs to display (default: 5)
+
+### merge_weights.py
+
+Merges LoRA adapter weights into the base model for deployment/serving.
+
+**Why merge?**
+- LoRA adapters require loading base model + adapter at inference time
+- Merged model is a single artifact that can be served directly
+- No PEFT dependency needed at inference time
+
+**Process:**
+1. Load base model from config
+2. Load LoRA adapter from checkpoint
+3. Merge adapter weights into base model via `merge_and_unload()`
+4. Save merged model and tokenizer
+
+**CLI arguments:**
+- `--config`: Path to training config YAML (required, used to get base model name)
+- `--adapter`: Path to LoRA adapter checkpoint (required)
+- `--output`: Output path for merged model (required)
+- `--dtype`: Data type for merged model - `bf16`, `fp16`, or `fp32` (default: `bf16`)
+- `--force`: Overwrite output path if it exists
+
+**Validation:**
+- Checks adapter path exists and contains `adapter_config.json`
+- Refuses to overwrite existing output without `--force` flag
 
 ## Configuration
 
