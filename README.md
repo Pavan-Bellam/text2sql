@@ -69,3 +69,15 @@ Options:
 - `--adapter-path`: Path to LoRA adapter (default: `checkpoints/final`)
 - `--max-samples`: Limit number of test samples
 - `--num-examples`: Number of sample outputs to display (default: `5`)
+
+## Merge Weights for Serving
+
+Merge LoRA adapter into base model for deployment:
+
+```bash
+python src/merge_weights.py --config config/train.yaml --adapter ./checkpoints/checkpoint-1000 --output ./merged_model
+```
+
+Options:
+- `--dtype`: Output precision - `bf16`, `fp16`, or `fp32` (default: `bf16`)
+- `--force`: Overwrite output directory if it exists
