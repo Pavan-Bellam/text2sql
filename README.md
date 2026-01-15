@@ -1,0 +1,83 @@
+# Text2SQL
+
+Fine-tuning Qwen2.5-Coder-7B-Instruct for text-to-SQL generation using the SynSQL-2.5M dataset with distributed training via DeepSpeed and HuggingFace Accelerate.
+
+## Setup
+
+```bash
+uv sync
+cp .env.example .env  # Configure environment variables
+```
+
+## Environment Variables
+
+Copy `.env.example` to `.env` and configure:
+
+| Variable | Description |
+|----------|-------------|
+| `AWS_ACCESS_KEY_ID` | AWS credentials for S3 checkpoint uploads |
+| `AWS_SECRET_ACCESS_KEY` | AWS credentials for S3 checkpoint uploads |
+| `WANDB_API_KEY` | Weights & Biases API key for experiment tracking |
+
+## Data Preparation
+
+Preprocesses SynSQL-2.5M dataset into memory-mapped Arrow files for efficient distributed loading.
+
+```bash
+python src/prepare_dataset.py --output-dir ./data/processed
+```
+
+Options:
+- `--model-name`: Tokenizer model (default: `Qwen/Qwen2.5-Coder-7B-Instruct`)
+- `--max-length`: Maximum sequence length (default: `4096`)
+- `--num-proc`: Number of parallel workers (default: `8`)
+- `--val-ratio`: Validation split ratio (default: `0.01`)
+- `--test-ratio`: Test split ratio (default: `0.01`)
+
+## Training
+
+Launch distributed training with Accelerate:
+
+```bash
+accelerate launch --config_file config/accelerate.yml src/train.py --config config/train.yaml
+```
+
+Resume from checkpoint:
+```bash
+accelerate launch --config_file config/accelerate.yml src/train.py --config config/train.yaml --resume ./checkpoints/checkpoint-500
+```
+
+Initialize from checkpoint (fresh optimizer state):
+```bash
+accelerate launch --config_file config/accelerate.yml src/train.py --config config/train.yaml --init-from ./checkpoints/checkpoint-500
+```
+
+## Evaluation
+
+Evaluate model on test set (computes loss, perplexity, and exact match accuracy):
+
+```bash
+python src/evaluate.py --config config/train.yaml
+```
+
+Evaluate specific checkpoint:
+```bash
+python src/evaluate.py --config config/train.yaml --checkpoint checkpoint-500
+```
+
+Options:
+- `--adapter-path`: Path to LoRA adapter (default: `checkpoints/final`)
+- `--max-samples`: Limit number of test samples
+- `--num-examples`: Number of sample outputs to display (default: `5`)
+
+## Merge Weights for Serving
+
+Merge LoRA adapter into base model for deployment:
+
+```bash
+python src/merge_weights.py --config config/train.yaml --adapter ./checkpoints/checkpoint-1000 --output ./merged_model
+```
+
+Options:
+- `--dtype`: Output precision - `bf16`, `fp16`, or `fp32` (default: `bf16`)
+- `--force`: Overwrite output directory if it exists

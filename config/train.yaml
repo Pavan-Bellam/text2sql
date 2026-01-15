@@ -1,0 +1,52 @@
+model:
+  name: Qwen/Qwen2.5-Coder-7B-Instruct
+
+quantization:
+  enabled: false
+
+lora:
+  r: 64
+  alpha: 128
+  dropout: 0.05
+  target_modules:
+    - q_proj
+    - k_proj
+    - v_proj
+    - o_proj
+
+training:
+  num_epochs: 2
+  per_device_batch_size: 7
+  gradient_accumulation_steps: 4
+  dataloader_num_workers: 4
+  learning_rate: 2.0e-4
+  lr_scheduler: cosine
+  warmup_ratio: 0.03
+  weight_decay: 0.01
+  max_grad_norm: 1.0
+  bf16: true
+  gradient_checkpointing: true
+  deepspeed: ./config/ds_config.json
+
+data:
+  path: ./data/processed
+  max_length: 4096
+  max_train_samples: 100000
+  max_val_samples: 1000
+
+checkpointing:
+  output_dir: ./checkpoints
+  save_steps: 100
+  save_total_limit: 3
+  resume_from: null
+
+logging:
+  wandb_project: text2sql
+  wandb_run_name: null
+  log_steps: 50
+
+s3:
+  bucket_name: text2sql-1437
+  prefix: training/experiments/run-1
+
+seed: 42
